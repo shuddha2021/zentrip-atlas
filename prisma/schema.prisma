@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Country {
+  code     String    @id
+  name     String
+  region   String
+  tags     String[]
+  climates Climate[]
+  places   Place[]
+}
+
+model Climate {
+  id          Int      @id @default(autoincrement())
+  countryCode String
+  month       Int
+  score       Int
+  tempMinF    Int
+  tempMaxF    Int
+  rainMm      Int
+  crowdLevel  String
+  budgetTier  String
+  highlights  String[]
+  country     Country  @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+
+  @@unique([countryCode, month])
+  @@index([month])
+  @@index([countryCode, month])
+}
+
+model Place {
+  id               Int     @id @default(autoincrement())
+  countryCode      String
+  name             String
+  type             String
+  shortDescription String
+  country          Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+
+  @@index([countryCode])
+}
+
+// Email subscribers for alerts
+model EmailSubscriber {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+  isActive    Boolean   @default(true)
+  sourcePage  String?
+}
+
+// Analytics events (first-party, privacy-respecting)
+model AnalyticsEvent {
+  id         Int      @id @default(autoincrement())
+  event      String
+  path       String?
+  referrer   String?
+  properties Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([event])
+  @@index([createdAt])
+}
