@@ -5,6 +5,11 @@ import { prisma } from "@/lib/db";
 import { parseMonthSlug, getMonthName, getCanonicalUrl, shouldNoIndex } from "@/lib/seo";
 import { formatTempRangeC } from "@/lib/units";
 
+// Force dynamic rendering - no DB access at build time
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
 interface PageProps {
   params: Promise<{ month: string }>;
 }
@@ -42,13 +47,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-// Generate static params for all 12 months
-export async function generateStaticParams() {
-  return Array.from({ length: 12 }, (_, i) => ({
-    month: String(i + 1),
-  }));
-}
-
 export default async function WhereToGoInMonthPage({ params }: PageProps) {
   const { month: monthSlug } = await params;
   const month = parseMonthSlug(monthSlug);
@@ -59,19 +57,50 @@ export default async function WhereToGoInMonthPage({ params }: PageProps) {
   
   const monthName = getMonthName(month);
   
-  // Fetch top destinations for this month
-  const climates = await prisma.climate.findMany({
-    where: { month },
-    orderBy: { score: "desc" },
-    take: 12,
-    include: { country: true },
-  });
+  // Fetch top destinations for this month - request time only
+  let climates: Array<{
+    id: number;
+    month: number;
+    score: number;
+    tempMinF: number;
+    tempMaxF: number;
+    rainMm: number;
+    crowdLevel: string;
+    budgetTier: string;
+    highlights: string[];
+    country: { code: string; name: string; region: string; tags: string[] };
+  }> = [];
+  
+  try {
+    climates = await prisma.climate.findMany({
+      where: { month },
+      orderBy: { score: "desc" },
+      take: 12,
+      include: { country: true },
+    });
+  } catch (error) {
+    console.error("Failed to fetch climate data:", error);
+    // Return error UI
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+        <div className="text-center px-6">
+          <h1 className="text-2xl font-bold text-slate-800 mb-4">Unable to load destinations</h1>
+          <p className="text-slate-600 mb-6">We&apos;re having trouble connecting to our database. Please try again.</p>
+          <Link href="/explorer" className="text-indigo-600 hover:text-indigo-800 font-medium">
+            ← Back to Explorer
+          </Link>
+        </div>
+      </div>
+    );
+  }
   
   // FAQ content
   const faqs = [
     {
       question: `What are the best places to visit in ${monthName}?`,
-      answer: `Based on climate data, the top destinations in ${monthName} include ${climates.slice(0, 3).map(c => c.country.name).join(", ")}. These locations offer favorable weather conditions and comfortable temperatures for travelers.`,
+      answer: climates.length > 0
+        ? `Based on climate data, the top destinations in ${monthName} include ${climates.slice(0, 3).map(c => c.country.name).join(", ")}. These locations offer favorable weather conditions and comfortable temperatures for travelers.`
+        : `${monthName} offers various travel opportunities. Check our explorer for detailed recommendations.`,
     },
     {
       question: `Is ${monthName} a good time to travel internationally?`,
@@ -177,7 +206,7 @@ export default async function WhereToGoInMonthPage({ params }: PageProps) {
             {climates.map((climate, index) => (
               <Link
                 key={climate.id}
-                href={`/country/${climate.countryCode}?month=${month}`}
+                href={`/country/${climate.country.code}?month=${month}`}
                 className="group bg-white/90 backdrop-blur-sm border border-slate-200/60 rounded-2xl p-5 hover:border-slate-300 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-start justify-between mb-3">

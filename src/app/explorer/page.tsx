@@ -3,7 +3,10 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { ExplorerClient } from "@/components/ExplorerClient";
 
+// Force dynamic rendering - no DB access at build time
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 export const metadata: Metadata = {
   title: "Explore Destinations | ZenTrip Atlas",

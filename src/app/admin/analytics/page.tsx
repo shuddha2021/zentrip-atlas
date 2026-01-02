@@ -2,7 +2,10 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import type { Metadata } from "next";
 
+// Force dynamic rendering - no DB access at build time
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 export const metadata: Metadata = {
   title: "Analytics | Admin | ZenTrip Atlas",
