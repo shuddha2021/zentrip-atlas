@@ -7,15 +7,29 @@ import { getMonthName, getCanonicalUrl, shouldNoIndex } from "@/lib/seo";
 import { formatTempRangeC } from "@/lib/units";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
 
+// Force dynamic rendering - avoid build-time DB access
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface PageProps {
   params: Promise<{ code: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code: rawCode } = await params;
-  const code = rawCode.toUpperCase().trim();
+  const code = (rawCode ?? "").toUpperCase().trim();
   
-  const country = await prisma.country.findUnique({ where: { code } });
+  if (!code) {
+    return { title: "Not Found | ZenTrip Atlas" };
+  }
+  
+  let country: { name: string; region: string } | null = null;
+  try {
+    country = await prisma.country.findUnique({ where: { code } });
+  } catch {
+    // DB error at request time - return generic metadata
+    return { title: "Destination | ZenTrip Atlas" };
+  }
   
   if (!country) {
     return { title: "Not Found | ZenTrip Atlas" };
@@ -45,34 +59,52 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-// Generate static params for all countries
-export async function generateStaticParams() {
-  const countries = await prisma.country.findMany({
-    select: { code: true },
-  });
-  
-  return countries.map((country) => ({
-    code: country.code.toLowerCase(),
-  }));
-}
-
 export default async function BestTimeToVisitPage({ params }: PageProps) {
   const { code: rawCode } = await params;
-  const code = rawCode.toUpperCase().trim();
+  const code = (rawCode ?? "").toUpperCase().trim();
   
-  const country = await prisma.country.findUnique({ where: { code } });
+  if (!code) {
+    notFound();
+  }
+  
+  // Fetch data with error handling
+  let country: { code: string; name: string; region: string; tags: string[] } | null = null;
+  let bestMonths: Awaited<ReturnType<typeof getBestMonths>> = null;
+  let allClimates: { month: number; score: number; tempMinF: number; tempMaxF: number; rainMm: number; crowdLevel: string; budgetTier: string }[] = [];
+  
+  try {
+    country = await prisma.country.findUnique({ where: { code } });
+    
+    if (!country) {
+      notFound();
+    }
+    
+    bestMonths = await getBestMonths(code);
+    
+    // Get all climate data for the monthly breakdown
+    allClimates = await prisma.climate.findMany({
+      where: { countryCode: code },
+      orderBy: { month: "asc" },
+    });
+  } catch (error) {
+    // Log error but show friendly message
+    console.error("Failed to load destination data:", error);
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+        <div className="text-center px-6">
+          <h1 className="text-2xl font-bold text-slate-800 mb-4">Unable to load destination</h1>
+          <p className="text-slate-600 mb-6">We&apos;re having trouble connecting to our database. Please try again.</p>
+          <Link href="/explorer" className="text-indigo-600 hover:text-indigo-800 font-medium">
+            ← Back to Explorer
+          </Link>
+        </div>
+      </div>
+    );
+  }
   
   if (!country) {
     notFound();
   }
-  
-  const bestMonths = await getBestMonths(code);
-  
-  // Get all climate data for the monthly breakdown
-  const allClimates = await prisma.climate.findMany({
-    where: { countryCode: code },
-    orderBy: { month: "asc" },
-  });
   
   // FAQ content
   const faqs = [
