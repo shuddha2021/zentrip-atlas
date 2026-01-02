@@ -13,6 +13,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <meta
+          name="google-site-verification"
+          content="j-JpW26Lawchqhk2J6uie2D24iUI6GwS10jmYamIdXU"
+        />
+      </head>
       <body className="antialiased text-gray-900">
         <main className="min-h-screen">{children}</main>
       </body>
