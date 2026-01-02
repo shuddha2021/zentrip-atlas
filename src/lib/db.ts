@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import { getDatabaseUrl } from "./dbUrl";
 
 declare global {
   var __prisma: PrismaClient | undefined;
@@ -8,9 +9,8 @@ declare global {
 }
 
 function createPool() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
-  return new Pool({ connectionString: url });
+  const connectionString = getDatabaseUrl();
+  return new Pool({ connectionString });
 }
 
 function createPrismaClient(pool: Pool) {
