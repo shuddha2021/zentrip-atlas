@@ -4,6 +4,19 @@
  */
 
 /**
+ * Check if we should use SSL for database connections.
+ * Returns true for Render, production, or when DATABASE_URL contains render.com
+ */
+export function shouldUseSsl(): boolean {
+  const isRender = !!process.env.RENDER;
+  const isProduction = process.env.NODE_ENV === "production";
+  const urlHasRender = (process.env.DATABASE_URL ?? "").includes("render.com") ||
+                       (process.env.DIRECT_DATABASE_URL ?? "").includes("render.com");
+  
+  return isRender || isProduction || urlHasRender;
+}
+
+/**
  * Get the normalized database URL for Prisma/pg connections.
  * 
  * - Checks DIRECT_DATABASE_URL first, then DATABASE_URL
