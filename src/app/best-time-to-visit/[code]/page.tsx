@@ -6,10 +6,12 @@ import { getBestMonths } from "@/lib/bestMonths";
 import { getMonthName, getCanonicalUrl, shouldNoIndex } from "@/lib/seo";
 import { formatTempRangeC } from "@/lib/units";
 import { EmailSignupForm } from "@/components/EmailSignupForm";
+import { getStaticCountry } from "@/data/countries.static";
 
 // Force dynamic rendering - avoid build-time DB access
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs";
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -23,20 +25,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Not Found | ZenTrip Atlas" };
   }
   
-  let country: { name: string; region: string } | null = null;
-  try {
-    country = await prisma.country.findUnique({ where: { code } });
-  } catch {
-    // DB error at request time - return generic metadata
-    return { title: "Destination | ZenTrip Atlas" };
-  }
+  // Use static data for build-time safety - no DB access
+  const staticCountry = getStaticCountry(code);
   
-  if (!country) {
+  if (!staticCountry) {
     return { title: "Not Found | ZenTrip Atlas" };
   }
   
-  const title = `Best Time to Visit ${country.name} | When to Go | ZenTrip Atlas`;
-  const description = `Find the best months to visit ${country.name}. Complete guide with climate data, temperatures, rainfall, and crowd levels for ${country.region}.`;
+  const title = `Best Time to Visit ${staticCountry.name} | When to Go | ZenTrip Atlas`;
+  const description = `Find the best months to visit ${staticCountry.name}. Complete guide with climate data, temperatures, rainfall, and crowd levels for ${staticCountry.region}.`;
   
   return {
     title,

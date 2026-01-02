@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
+import { getStaticCountry } from "@/data/countries.static";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,13 +23,15 @@ interface PageProps {
 
 export default async function Image({ params }: PageProps) {
   const { code: rawCode } = await params;
-  const code = rawCode.toUpperCase().trim();
+  const code = (rawCode ?? "").toUpperCase().trim();
   
   // Fetch country and current month climate
   const currentMonth = new Date().getMonth() + 1;
   
-  let countryName = code;
-  let region = "Explore";
+  // Use static data as fallback for country name/region
+  const staticCountry = getStaticCountry(code);
+  let countryName = staticCountry?.name ?? code;
+  let region = staticCountry?.region ?? "Explore";
   let climate: {
     score: number;
     tempMinF: number;
@@ -52,7 +55,7 @@ export default async function Image({ params }: PageProps) {
       climate = climateData;
     }
   } catch {
-    // Use defaults
+    // Use static defaults
   }
 
   const score = climate?.score ?? 0;

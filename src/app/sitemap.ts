@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
-import { prisma } from "@/lib/db";
 import { getBaseUrl } from "@/lib/seo";
+import { staticCountries } from "@/data/countries.static";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
@@ -41,22 +41,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
   
-  // Best time to visit country pages
-  let countryPages: MetadataRoute.Sitemap = [];
-  try {
-    const countries = await prisma.country.findMany({
-      select: { code: true },
-    });
-    
-    countryPages = countries.map((country) => ({
-      url: `${baseUrl}/best-time-to-visit/${country.code.toLowerCase()}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    }));
-  } catch (error) {
-    console.error("Sitemap: Failed to fetch countries", error);
-  }
+  // Best time to visit country pages - use static data (no DB access at build)
+  const countryPages: MetadataRoute.Sitemap = staticCountries.map((country) => ({
+    url: `${baseUrl}/best-time-to-visit/${country.code.toLowerCase()}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
   
   return [...staticPages, ...monthPages, ...countryPages];
 }

@@ -8,9 +8,11 @@ import { CostOverview } from "@/components/CostOverview";
 import { CompareMonths } from "@/components/CompareMonths";
 import { ShareButton } from "@/components/ShareButton";
 import { getBestMonths } from "@/lib/bestMonths";
+import { getStaticCountry } from "@/data/countries.static";
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -22,35 +24,33 @@ interface PageProps {
   searchParams: Promise<{ month?: string }>;
 }
 
-// Dynamic SEO metadata with OG image support
+// Dynamic SEO metadata - uses static data at build, DB not needed
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code: rawCode } = await params;
-  const code = rawCode.toUpperCase().trim();
+  const code = (rawCode ?? "").toUpperCase().trim();
   
-  try {
-    const country = await prisma.country.findUnique({ where: { code } });
-    if (country) {
-      const title = `${country.name} Travel Guide | ZenTrip Atlas`;
-      const description = `Discover the best time to visit ${country.name}. Climate data, top attractions, and travel tips for ${country.region}.`;
-      
-      return {
+  // Use static data for build-time safety
+  const country = getStaticCountry(code);
+  
+  if (country) {
+    const title = `${country.name} Travel Guide | ZenTrip Atlas`;
+    const description = `Discover the best time to visit ${country.name}. Climate data, top attractions, and travel tips for ${country.region}.`;
+    
+    return {
+      title,
+      description,
+      openGraph: {
         title,
         description,
-        openGraph: {
-          title,
-          description,
-          type: "website",
-          siteName: "ZenTrip Atlas",
-        },
-        twitter: {
-          card: "summary_large_image",
-          title,
-          description,
-        },
-      };
-    }
-  } catch {
-    // Fall through to default
+        type: "website",
+        siteName: "ZenTrip Atlas",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      },
+    };
   }
   
   return {
